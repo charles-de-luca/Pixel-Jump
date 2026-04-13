@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PIXEL JUMP - Test Page</title>
+  
+  <!-- Pixel Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css?v=2.1">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/images/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/images/icon-512.png">
+</head>
+
+<body>
+  <!-- Game Container (360×640) -->
+  <div id="game-container">
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+      <!-- Loading Screen -->
+      <div id="loading-screen" class="screen active">
+        <div class="pixel-box">
+          <pre class="pixel-title">
+██████████████
+█ PIXEL JUMP █
+██████████████
+          </pre>
+          <div class="pixel-character">👾</div>
+          <div class="loading-text">Testing Game...</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Test Controls -->
+      <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px; border: 2px solid white; color: white; font-family: 'VT323', monospace; z-index: 1000;">
+        <h3>TEST CONTROLS:</h3>
+        <p>Left Arrow: Move Left</p>
+        <p>Right Arrow: Move Right</p>
+        <p>Space/Enter: Start Game</p>
+        <p>ESC: Pause</p>
+        <p>Debug Console: Press F12 to see logs</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Main Game Script -->
+  <script type="module">
+    // Import game engine
+    import { PixelJumpGame } from './game-engine.js?v=2.9';
+
+    // Import audio system
+    import { PixelAudio } from './audio.js';
+
+    // Import Telegram integration
+    import { initTelegram } from './telegram.js';
+
+    // Initialize Telegram
+    const tg = initTelegram();
+    if (tg) tg.ready(); // Signal that app is ready
+
+    // Get canvas
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false; // Strict 8-bit rendering
+
+    // Set canvas internal resolution (Fixed for 8-bit logic)
+    canvas.width = 360;
+    canvas.height = 640;
+
+    // Dynamic Resizing for Universal Device Support
+    function resizeGame() {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // Calculate scale factor to fit window while maintaining aspect ratio (360/640 = 0.5625)
+        const targetRatio = 360 / 640;
+        const windowRatio = windowWidth / windowHeight;
+
+        let scale;
+        if (windowRatio < targetRatio) {
+            // Window is narrower than game, fit to width
+            scale = windowWidth / 360;
+        } else {
+            // Window is wider than game, fit to height
+            scale = windowHeight / 640;
+        }
+
+        // Apply scale via CSS transform to ensure crisp pixels
+        canvas.style.width = `${360 * scale}px`;
+        canvas.style.height = `${640 * scale}px`;
+
+        // CRITICAL FIX: Center canvas on mobile
+        canvas.style.position = 'absolute';
+        canvas.style.left = '50%';
+        canvas.style.top = '50%';
+        canvas.style.transform = `translate(-50%, -50%)`;
+
+        console.log('🎮 Canvas resized:', {
+            windowWidth,
+            windowHeight,
+            scale,
+            canvasWidth: 360 * scale,
+            canvasHeight: 640 * scale
+        });
+    }
+
+    // Initial resize
+    resizeGame();
+
+    // Resize on window resize and orientation change
+    window.addEventListener('resize', resizeGame);
+    window.addEventListener('orientationchange', () => {
+        setTimeout(resizeGame, 100); // Delay to let orientation settle
+    });
+    if (tg) {
+        tg.onEvent('viewportChanged', resizeGame);
+        tg.expand(); // Force expand again
+    }
+
+    // Initialize Audio
+    const audio = new PixelAudio();
+    window.audio = audio; // Export for settings-skins.js
+
+    // Game Instance
+    let game = null;
+
+    // Initialize game
+    async function initGame() {
+        console.log('🎮 Initializing PIXEL JUMP...');
+        console.log('📱 Is mobile?', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
+        try {
+            // Create game instance
+            game = new PixelJumpGame(canvas, ctx, audio);
+            window.game = game; // Export for testing
+
+            // Show loading screen and simulate loading
+            const loadingElement = document.getElementById('loading-screen');
+            const progressFill = loadingElement.querySelector('.progress-fill');
+
+            // Animate loading
+            for (let i = 0; i <= 100; i += 10) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                if (progressFill) {
+                    progressFill.style.width = `${i}%`;
+                }
+            }
+
+            console.log('✅ Game initialized successfully!');
+            console.log('📋 Available methods:');
+            console.log('   - game.start(): Start the game');
+            console.log('   - game.setInput(left, right): Control player movement');
+            console.log('   - game.setTilt(value): Set tilt control (value between -1 and 1)');
+            
+            // Change loading text to indicate game is ready
+            document.querySelector('.loading-text').textContent = 'Game Ready! Press SPACE to start';
+        } catch (error) {
+            console.error('❌ Error initializing game:', error);
+            console.error('Error stack:', error.stack);
+            document.querySelector('.loading-text').textContent = 'Error: Check console for details';
+        }
+    }
+
+    // Setup keyboard controls for testing
+    document.addEventListener('keydown', (e) => {
+        if (!game) return;
+        
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (game && typeof game.start === 'function') {
+                console.log('🎮 Starting game...');
+                game.start();
+                
+                // Show simple controls
+                document.querySelector('.loading-text').textContent = 'Game Running! Use arrow keys to move';
+            }
+        }
+        
+        if (e.key === 'ArrowLeft' || e.key === 'a') {
+            if (game && typeof game.setInput === 'function') {
+                game.setInput(true, false);
+                console.log('← Moving left');
+            }
+        }
+        if (e.key === 'ArrowRight' || e.key === 'd') {
+            if (game && typeof game.setInput === 'function') {
+                game.setInput(false, true);
+                console.log('→ Moving right');
+            }
+        }
+        if (e.key === 'Escape') {
+            console.log('⏸ Game paused');
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (!game) return;
+        
+        if (typeof game.setInput !== 'function') return;
+
+        if (e.key === 'ArrowLeft' || e.key === 'a') game.setInput(false, false);
+        if (e.key === 'ArrowRight' || e.key === 'd') game.setInput(false, false);
+    });
+
+    // Initialize the game when page loads
+    window.addEventListener('load', () => {
+        console.log('🎮 Test page loaded, initializing game...');
+        initGame();
+    });
+
+    console.log('🎮 Test page loaded. Open console to see game status.');
+  </script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PIXEL JUMP - Telegram Mini Game</title>
+  <meta name="theme-color" content="#000000">
+
+  <!-- Pixel Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css?v=4.0">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/images/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/images/icon-512.png">
+
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+
+    <!-- Debug Console (Admin Only) -->
+    <div id="debug-console"
+      style="position:fixed;top:0;left:0;width:100%;height:80px;background:rgba(0,0,0,0.6);color:#0f0;font-family:monospace;font-size:9px;overflow-y:scroll;z-index:9999;pointer-events:none;padding:5px;display:none;">
+      > DEBUG STARTED<br>
+    </div>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+
+      <!-- ===== LOADING SCREEN ===== -->
+      <div id="loading-screen" class="screen active">
+        <div class="loading-content">
+          <div class="logo-glow">
+            <div class="logo-text">PIXEL<br>JUMP</div>
+          </div>
+          <div class="loading-character">👾</div>
+          <div class="loading-text">Loading...</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <button id="btn-manual-login" class="pixel-btn ghost hidden">↻ RETRY LOGIN</button>
+        </div>
+      </div>
+
+      <!-- ===== MAIN MENU ===== -->
+      <div id="menu-screen" class="screen">
+        <div class="menu-container">
+          <div class="menu-header">
+            <div class="menu-logo" id="menu-logo">PIXEL JUMP</div>
+            <div class="menu-mascot">👾</div>
+          </div>
+
+          <!-- Daily Challenge Widget -->
+          <div class="daily-widget">
+            <div class="daily-widget-icon">🎯</div>
+            <div class="daily-widget-body">
+              <div id="daily-title" class="daily-title">DAILY CHALLENGE</div>
+              <div id="daily-desc" class="daily-desc">Loading...</div>
+              <div id="daily-status" class="daily-status">...</div>
+            </div>
+          </div>
+
+          <div class="menu-actions">
+            <button class="pixel-btn primary glow" id="btn-start">▶ START GAME</button>
+            <button class="pixel-btn text-btn" id="btn-tutorial">🎓 REPLAY TUTORIAL</button>
+
+            <div class="menu-grid">
+              <button class="pixel-btn" id="btn-skins">🎨 SKINS</button>
+              <button class="pixel-btn" id="btn-challenges">⚔️ DUEL</button>
+            </div>
+
+            <button class="pixel-btn" id="btn-characters">👤 CHARACTERS</button>
+            <button class="pixel-btn" id="btn-leaderboard">🏆 LEADERBOARD</button>
+            <button class="pixel-btn" id="btn-settings">⚙ SETTINGS</button>
+          </div>
+
+          <div class="menu-user">
+            <div class="user-avatar">👤</div>
+            <div class="user-name" id="user-name">Hi, Player</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CHARACTER SELECT ===== -->
+      <div id="character-select-screen" class="screen">
+        <div class="screen-panel">
+          <h2 class="screen-title">SELECT CHARACTER</h2>
+
+          <div class="character-carousel">
+            <button class="carousel-arrow" id="char-prev">◀</button>
+            <div class="character-display">
+              <div class="character-sprite" id="char-sprite">🟢</div>
+              <div class="character-name" id="char-name">JUMPER</div>
+              <div class="character-ability" id="char-ability">Balanced for beginners</div>
+              <div class="unlock-status" id="char-status">
+                <span class="unlocked">✅ UNLOCKED</span>
+              </div>
+              <div class="unlock-progress hidden" id="char-progress">
+                <div class="progress-label">1500 / 2000 SCORE</div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" style="width: 75%"></div>
+                </div>
+              </div>
+            </div>
+            <button class="carousel-arrow" id="char-next">▶</button>
+          </div>
+
+          <div class="carousel-indicators" id="char-indicators">
+            <span class="indicator active"></span>
+            <span class="indicator"></span>
+            <span class="indicator"></span>
+            <span class="indicator"></span>
+            <span class="indicator"></span>
+          </div>
+
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-select-character">SELECT & PLAY ▶</button>
+            <button class="pixel-btn" id="btn-back-from-chars">⬅ BACK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PERK SELECTION ===== -->
+      <div id="perk-select-screen" class="screen">
+        <div class="screen-panel">
+          <h2 class="screen-title">CHOOSE YOUR PERK</h2>
+          <p class="screen-subtitle">Select one modifier for this run</p>
+
+          <div class="perks-grid">
+            <div class="perk-card" data-perk="feather" onclick="window.selectPerk('feather')">
+              <div class="perk-emoji">🪶</div>
+              <div class="perk-name">FEATHER</div>
+              <div class="perk-desc">Slower fall<br>-10% gravity</div>
+            </div>
+            <div class="perk-card" data-perk="turbo" onclick="window.selectPerk('turbo')">
+              <div class="perk-emoji">⚡</div>
+              <div class="perk-name">TURBO</div>
+              <div class="perk-desc">Higher jumps<br>+20% force</div>
+            </div>
+            <div class="perk-card" data-perk="shield" onclick="window.selectPerk('shield')">
+              <div class="perk-emoji">🛡</div>
+              <div class="perk-name">SHIELD</div>
+              <div class="perk-desc">One extra life<br>per game</div>
+            </div>
+          </div>
+
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-start-with-perk" onclick="window.tryStartGame()">START GAME ▶</button>
+            <button class="pixel-btn ghost" id="btn-skip-perk" onclick="window.skipPerkAndStart()">SKIP (No Perk)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== GAME HUD ===== -->
+      <div id="game-hud" class="game-hud hidden">
+        <div class="hud-left">
+          <div class="hud-score">SCORE <span id="current-score">00000</span></div>
+          <div class="hud-high">BEST <span id="high-score">00000</span></div>
+        </div>
+        <div id="touch-hints" class="touch-hints hidden" style="display:none!important;"></div>
+        <div class="hud-right">
+          <div class="hud-combo hidden" id="combo-display">x<span id="combo-value">0</span> 🔥</div>
+          <button id="btn-pause" class="hud-pause" title="Pause">⏸</button>
+        </div>
+      </div>
+
+      <!-- ===== PAUSE ===== -->
+      <div id="pause-screen" class="screen overlay-screen">
+        <div class="panel-box">
+          <div class="panel-header">⏸ PAUSED</div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-resume">▶ RESUME</button>
+            <button class="pixel-btn" id="btn-restart">↻ RESTART</button>
+            <button class="pixel-btn" id="btn-menu">⬅ MAIN MENU</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ERROR RECOVERY ===== -->
+      <div id="error-screen" class="screen">
+        <div class="panel-box error-panel">
+          <div class="panel-header error-header">⚠️ ERROR</div>
+          <div class="error-message" id="error-message">Something went wrong</div>
+          <div class="error-details" id="error-details"></div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-retry-game">🔄 RETRY</button>
+            <button class="pixel-btn" id="btn-error-menu">⬅ MENU</button>
+            <button class="pixel-btn ghost small" id="btn-copy-error">📋 COPY ERROR</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== GAME OVER ===== -->
+      <div id="gameover-screen" class="screen">
+        <div class="gameover-container">
+          <div class="gameover-title">GAME OVER</div>
+          <div class="gameover-scores">
+            <div class="score-row">
+              <span class="score-label">SCORE</span>
+              <span class="score-value" id="final-score">00000</span>
+            </div>
+            <div class="score-row best">
+              <span class="score-label">BEST</span>
+              <span class="score-value" id="best-score">00000</span>
+            </div>
+          </div>
+          <div class="new-record hidden" id="new-record">🏆 NEW RECORD!</div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary glow" id="btn-play-again">▶ PLAY AGAIN</button>
+            <button class="pixel-btn" id="btn-share">📤 SHARE SCORE</button>
+            <button class="pixel-btn ghost" id="btn-menu-go">🏠 MENU</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== LEADERBOARD ===== -->
+      <div id="leaderboard-screen" class="screen">
+        <div class="screen-panel full-height">
+          <div class="screen-title">🏆 TOP 100</div>
+          <div class="leaderboard-list">
+            <div class="loading-text">Loading...</div>
+          </div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-back-leaderboard">⬅ BACK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS ===== -->
+      <div id="settings-screen" class="screen">
+        <div class="screen-panel">
+          <div class="screen-title">⚙ SETTINGS</div>
+
+          <div class="settings-group">
+            <div class="setting-item">
+              <span class="setting-label">🔊 SOUND</span>
+              <button class="pixel-toggle" id="toggle-sound">ON</button>
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">📳 VIBRATION</span>
+              <button class="pixel-toggle" id="toggle-vibration">ON</button>
+            </div>
+
+            <div class="setting-item vertical-setting">
+              <span class="setting-label">🕹️ CONTROLS</span>
+              <div class="toggle-group">
+                <button class="pixel-toggle-option active" id="mode-tap" data-mode="tap">TAP</button>
+                <button class="pixel-toggle-option" id="mode-tilt" data-mode="tilt">TILT</button>
+                <button class="pixel-toggle-option" id="mode-hybrid" data-mode="hybrid">HYBRID</button>
+              </div>
+            </div>
+
+            <div class="setting-item vertical-setting" id="sensitivity-container">
+              <div class="setting-row-header">
+                <span class="setting-label">🎚️ SENSITIVITY</span>
+                <span class="setting-value" id="sens-value">5</span>
+              </div>
+              <input type="range" min="1" max="10" value="5" class="pixel-slider" id="sensitivity-slider">
+            </div>
+
+            <div class="setting-item">
+              <span class="setting-label">⚡ QUALITY</span>
+              <button class="pixel-toggle active" id="toggle-quality">HIGH</button>
+            </div>
+
+            <div class="setting-item">
+              <span class="setting-label" data-i18n="language">🌐 LANGUAGE</span>
+              <button class="pixel-toggle" id="toggle-lang">EN</button>
+            </div>
+          </div>
+
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-back-settings">⬅ BACK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SKINS ===== -->
+      <div id="skins-screen" class="screen">
+        <div class="skins-container">
+          <div class="screen-title">🎨 SKINS</div>
+          <div class="skins-layout">
+            <div class="skins-list" id="skins-list"></div>
+            <div class="skin-details-panel" id="skin-details-panel">
+              <div class="details-title">UNLOCK:</div>
+              <div class="details-content" id="skin-unlock-info">Select a skin</div>
+            </div>
+          </div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-back-skins">⬅ BACK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== DUEL MENU ===== -->
+      <div id="duel-menu-screen" class="screen">
+        <div class="screen-panel">
+          <h2 class="screen-title" data-i18n="duel">⚔️ DUEL</h2>
+          <div class="duel-menu-body">
+            <div class="duel-info-card">
+              <div class="duel-info-icon">⚔️</div>
+              <p class="duel-info-text" data-i18n="duel_info">Play a game then share your score to challenge friends!</p>
+            </div>
+            <div class="duel-best-card">
+              <span class="duel-best-label" data-i18n="your_best">YOUR BEST</span>
+              <span class="duel-best-value" id="duel-best-score">00000</span>
+            </div>
+          </div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary glow" id="btn-duel-start" data-i18n="start_duel">⚔️ START DUEL</button>
+            <button class="pixel-btn" id="btn-duel-back" data-i18n="back">⬅ BACK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CHALLENGE START ===== -->
+      <div id="challenge-start-screen" class="screen">
+        <div class="panel-box challenge-panel">
+          <div class="panel-header challenge-header">⚔️ DUEL REQUEST</div>
+          <div class="challenge-body">
+            <div class="challenger-name" id="challenger-name">@Player challenges you!</div>
+            <div class="challenge-label">TARGET SCORE</div>
+            <div class="challenge-target" id="challenge-target">0000</div>
+          </div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-accept-challenge">⚔️ ACCEPT DUEL</button>
+            <button class="pixel-btn" id="btn-decline-challenge">❌ DECLINE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CHALLENGE RESULT ===== -->
+      <div id="challenge-result-screen" class="screen">
+        <div class="panel-box" id="result-panel">
+          <div class="panel-header" id="duel-result-title">RESULT</div>
+          <div class="duel-scores">
+            <div class="duel-row">YOU: <span id="duel-player-score">0</span></div>
+            <div class="duel-row rival">RIVAL: <span id="duel-target-score">0</span></div>
+          </div>
+          <div class="screen-actions">
+            <button class="pixel-btn primary" id="btn-challenge-share">📤 SHARE REVENGE</button>
+            <button class="pixel-btn" id="btn-challenge-menu">🏠 MENU</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /ui-overlay -->
+  </div><!-- /game-container -->
+
+  <!-- Notification Popups -->
+  <div id="daily-notification" class="notification-popup"></div>
+
+  <!-- Unlock Notification -->
+  <div id="unlock-notification" class="unlock-notification hidden">
+    <div class="unlock-content">
+      <div class="unlock-icon">🎨</div>
+      <div class="unlock-title">SKIN UNLOCKED!</div>
+      <div class="unlock-name" id="unlock-name">Neon Runner</div>
+      <div class="unlock-emoji" id="unlock-emoji">🔵</div>
+      <button class="pixel-btn primary" id="btn-close-unlock">AWESOME!</button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="main.v3.js?v=4.0"></script>
+</body>
+
+</html>

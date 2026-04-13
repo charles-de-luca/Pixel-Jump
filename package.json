@@ -1,0 +1,24 @@
+{
+  "name": "pixel-jump",
+  "version": "1.0.0",
+  "description": "8-bit Pixel Art Vertical Platformer - Telegram Mini Game",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "start": "lite-server",
+    "build": "echo 'No build step needed for static site'",
+    "deploy": "firebase deploy"
+  },
+  "keywords": [
+    "game",
+    "pixel-art",
+    "telegram",
+    "platformer",
+    "8-bit"
+  ],
+  "author": "PIXEL JUMP Team",
+  "license": "MIT",
+  "devDependencies": {
+    "lite-server": "^2.6.1"
+  }
+}
