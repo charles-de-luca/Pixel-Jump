@@ -183,21 +183,34 @@ function createMockTelegramWebApp() {
     setBackgroundColor: () => { },
     enableClosingConfirmation: () => { },
     CloudStorage: {
-      getItem: async (key) => {
+      getItem: (key, callback) => {
         try {
-          // Fallback to localStorage if CloudStorage is not available
-          return localStorage.getItem(key);
+          const value = localStorage.getItem(key);
+          if (typeof callback === 'function') {
+            callback(null, value);
+          }
+          return Promise.resolve(value);
         } catch (error) {
           console.error('Error accessing localStorage:', error);
-          return null;
+          if (typeof callback === 'function') {
+            callback(error, null);
+          }
+          return Promise.resolve(null);
         }
       },
-      setItem: async (key, value) => {
+      setItem: (key, value, callback) => {
         try {
-          // Fallback to localStorage if CloudStorage is not available
           localStorage.setItem(key, value);
+          if (typeof callback === 'function') {
+            callback(null, true);
+          }
+          return Promise.resolve(true);
         } catch (error) {
           console.error('Error storing to localStorage:', error);
+          if (typeof callback === 'function') {
+            callback(error, false);
+          }
+          return Promise.resolve(false);
         }
       }
     },
@@ -288,8 +301,13 @@ export async function saveHighScore(score) {
       // Try to also save to Telegram CloudStorage if available
       try {
         if (tg && tg.CloudStorage && typeof tg.CloudStorage.setItem === 'function') {
-          await tg.CloudStorage.setItem('uploop_high_score', score.toString());
-          console.log('High score also saved to Telegram CloudStorage');
+          await new Promise((resolve) => {
+            tg.CloudStorage.setItem('uploop_high_score', score.toString(), (err, success) => {
+              if (err) console.error('CloudStorage save error:', err);
+              else console.log('✅ High score saved to CloudStorage');
+              resolve(success);
+            });
+          });
         }
       } catch (cloudError) {
         // CloudStorage might not be supported, that's okay
@@ -335,7 +353,17 @@ export async function getHighScore() {
   // Try Telegram CloudStorage as secondary option
   try {
     if (tg && tg.CloudStorage && typeof tg.CloudStorage.getItem === 'function') {
-      const result = await tg.CloudStorage.getItem('uploop_high_score');
+      const result = await new Promise((resolve) => {
+        tg.CloudStorage.getItem('uploop_high_score', (err, value) => {
+          if (err) {
+            console.error('CloudStorage load error:', err);
+            resolve(null);
+          } else {
+            resolve(value);
+          }
+        });
+      });
+
       if (result) {
         console.log('High score loaded from Telegram CloudStorage:', result);
         // Also save to localStorage for faster access next time
@@ -348,6 +376,8 @@ export async function getHighScore() {
   } catch (error) {
     // CloudStorage might not be supported, that's okay
     console.log('Telegram CloudStorage not available, using localStorage only');
+  }
+
   return 0;
 }
 

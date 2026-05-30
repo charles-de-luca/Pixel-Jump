@@ -4,23 +4,23 @@ const CACHE_NAME = 'pixel-jump-v3.68';
 // We always try to get the latest version from the server.
 // Only if offline do we use the cache.
 const CRITICAL_URLS = [
-    '/',
-    '/index.html',
-    '/main.v3.js',
-    '/engine.v3.js',
-    '/settings-skins.js',
-    '/challenges.js',
-    '/telegram.js',
-    '/leaderboard.js',
-    '/audio.js',
-    '/biomes.js',
-    '/character-ui.js',
-    '/characters.js',
-    '/daily-challenge.js',
-    '/genesis-skins.js',
-    '/perks.js',
-    '/skin-effects.js',
-    '/style.css' // CSS is also critical for UI fixes
+    './',
+    'index.html',
+    'main.v3.js',
+    'engine.v3.js',
+    'settings-skins.js',
+    'challenges.js',
+    'telegram.js',
+    'leaderboard.js',
+    'audio.js',
+    'biomes.js',
+    'character-ui.js',
+    'characters.js',
+    'daily-challenge.js',
+    'genesis-skins.js',
+    'perks.js',
+    'skin-effects.js',
+    'style.css' // CSS is also critical for UI fixes
 ];
 
 // Strategy "Stale While Revalidate" for assets
@@ -78,7 +78,13 @@ self.addEventListener('fetch', (event) => {
     if (url.origin !== self.location.origin) return;
 
     // 1. IS IT A CRITICAL FILE? -> NETWORK FIRST
-    const isCritical = CRITICAL_URLS.some(u => url.pathname.endsWith(u) || url.pathname === '/');
+    const isCritical = CRITICAL_URLS.some(u => {
+        const cleanU = u.replace(/^\.\//, ''); // remove leading './'
+        if (cleanU === '' || cleanU === '/') {
+            return url.pathname === '/' || url.pathname.endsWith('/');
+        }
+        return url.pathname.endsWith(cleanU);
+    });
 
     if (isCritical) {
         event.respondWith(

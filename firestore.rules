@@ -7,10 +7,10 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == userId; 
     }
     
-    // Leaderboard collection
-    match /leaderboard/{entry} {
+    // Leaderboard collection — secure by restricting writes to own uid
+    match /leaderboard/{userId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // User profiles — only owner can write
@@ -19,10 +19,10 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Player progress sync (cross-device) — only owner can write
+    // Player progress sync (cross-device) — only authenticated users can write progress
     match /players/{playerId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == playerId;
+      allow write: if request.auth != null;
     }
     
     // Challenges collection — any auth user can create, all can read

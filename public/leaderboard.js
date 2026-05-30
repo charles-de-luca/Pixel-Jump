@@ -25,9 +25,14 @@ export class Leaderboard {
             return true;
         }
 
+        if (!auth || !auth.currentUser) {
+            console.warn('Firebase user not authenticated, cannot submit to remote leaderboard');
+            return true;
+        }
+
         try {
-            const finalUserId = safeUserId || auth?.currentUser?.uid || 'anonymous';
-            const scoreDocRef = doc(db, 'leaderboard', finalUserId);
+            const secureUid = auth.currentUser.uid;
+            const scoreDocRef = doc(db, 'leaderboard', secureUid);
 
             const docSnap = await getDoc(scoreDocRef);
             if (docSnap.exists()) {
@@ -38,7 +43,8 @@ export class Leaderboard {
             }
 
             await setDoc(scoreDocRef, {
-                userId: finalUserId,
+                userId: secureUid,
+                telegramId: safeUserId,
                 username: username || 'Player',
                 score: score,
                 photoUrl: window.userProfile?.photoUrl || null,
@@ -46,7 +52,7 @@ export class Leaderboard {
                 date: new Date().toISOString()
             });
 
-            console.log('Score submitted to leaderboard');
+            console.log('Score submitted to secure leaderboard');
             return true;
         } catch (error) {
             console.warn('Firestore submit failed, saved locally:', error.message);
@@ -119,7 +125,7 @@ export class Leaderboard {
     async getUserRank(userId) {
         try {
             const allScores = await this.getTopScores(100);
-            const idx = allScores.findIndex(s => s.userId === userId);
+            const idx = allScores.findIndex(s => s.telegramId === userId || s.userId === userId || s.userId === auth?.currentUser?.uid);
             if (idx === -1) return null;
             return { rank: idx + 1, score: allScores[idx].score };
         } catch (error) {
@@ -182,8 +188,8 @@ export function showLeaderboard(leaderboard) {
         const avatarUrl = entry.photoUrl ||
             `https://ui-avatars.com/api/?name=${encodeURIComponent(entry.username || 'User')}&background=8B00FF&color=fff&size=64&bold=true`;
 
-        // Highlight current user
-        const isMe = entry.userId === window.userProfile?.id;
+        // Highlight current user (check both Telegram ID and Firebase Auth UID)
+        const isMe = entry.telegramId === window.userProfile?.id || entry.userId === auth?.currentUser?.uid;
 
         item.innerHTML = `
             <span class="rank">${medal}</span>
