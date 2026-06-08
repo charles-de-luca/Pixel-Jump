@@ -1,3 +1,40 @@
+"""
+ This is the default license template.
+ 
+ File: generate_assets.py
+ Author: anonimous
+ Copyright (c) 2026 anonimous
+ 
+ To edit this license information: Press Ctrl+Shift+P and press 'Create new License Template...'.
+"""
+
+This is the default license template.
+ 
+ File: generate_assets.py
+ Author: anonimous
+ Copyright (c) 2026 anonimous
+ 
+ To edit this license information: Press Ctrl+Shift+P and press 'Create new License Template...'.
+"""
+
+This is the default license template.
+ 
+ File: generate_assets.py
+ Author: anonimous
+ Copyright (c) 2026 anonimous
+ 
+ To edit this license information: Press Ctrl+Shift+P and press 'Create new License Template...'.
+"""
+
+This is the default license template.
+ 
+ File: generate_assets.py
+ Author: anonimous
+ Copyright (c) 2026 anonimous
+ 
+ To edit this license information: Press Ctrl+Shift+P and press 'Create new License Template...'.
+"""
+
 import os
 import sys
 
