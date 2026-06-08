@@ -89,13 +89,13 @@ const firebaseConfig = {
 
 ## 📝 License
 
-MIT License - Feel free to use and modify!
+Apache License 2.0 - Feel free to use and modify!
 
 ## 🎮 Play Now
 
-[Add your deployed URL here]
+https://t.me/pixel_jump_bot
 
 ---
 
-Made with ❤️ using 8-bit pixel art# Pixel-Jump
+Made with ❤️ using 8-bit pixel art Pixel-Jump
 # Pixel-Jump
