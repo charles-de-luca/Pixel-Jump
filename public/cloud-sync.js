@@ -1,10 +1,10 @@
 /**
  * PIXEL JUMP — Cloud Sync Module
  * Saves/loads player progress to Firebase Firestore for cross-device sync.
- * Uses Telegram user ID as the document key.
+ * Uses Firebase Auth UID as the document key for secure per-user isolation.
  */
 
-import { db } from './firebase-config.js';
+import { db, auth } from './firebase-config.js';
 import { doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const SYNC_DEBOUNCE_MS = 5000; // Min 5s between writes
@@ -18,17 +18,21 @@ export class CloudSync {
     }
 
     /**
-     * Get the Telegram-based user ID for Firestore document path.
-     * Returns null if user is not identified.
+     * Get the Firebase Auth UID as the Firestore document key.
+     * Falls back to null if user is not authenticated.
+     * Using Firebase UID ensures Firestore security rules can enforce owner-only writes.
      */
     _getUserId() {
-        if (this._userId) return this._userId;
-
-        const profile = window.userProfile;
-        if (profile && profile.id && profile.id !== 'local_user' && profile.id !== null) {
-            this._userId = profile.id;
+        // Always prefer Firebase Auth UID (secure, enforced by Firestore rules)
+        if (auth && auth.currentUser && auth.currentUser.uid) {
+            this._userId = auth.currentUser.uid;
             return this._userId;
         }
+
+        // If cached from a previous call, reuse
+        if (this._userId) return this._userId;
+
+        // Not authenticated yet — cannot sync
         return null;
     }
 

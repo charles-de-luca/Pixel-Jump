@@ -279,12 +279,14 @@ const ADMIN_UID = 'BxjJKuIOiPZG3IDcvvrEfsIsxWr2';
 // Check for debug flag in URL
 const urlParams = new URLSearchParams(window.location.search);
 const debugMode = urlParams.get('debug') === '1' || urlParams.get('tgWebAppDebugUrl');
+window._debugMode = debugMode; // Expose for error handler
 
 // Force debug console if needed
 if (debugMode) {
     const debugConsole = document.getElementById('debug-console');
     if (debugConsole) debugConsole.style.display = 'block';
 }
+
 
 // Robust Retry Strategy (Try every 500ms for 3 seconds)
 let authRetryCount = 0;
@@ -666,6 +668,15 @@ function gameLoop(timestamp) {
         updateScoreDisplay(game.score);
         updateComboDisplay(game.combo);
 
+        // Check Daily Challenge in real-time
+        if (window.dailyChallenge) {
+            window.dailyChallenge.checkProgress({
+                score: game.score,
+                maxCombo: game.maxCombo || 0,
+                jumps: game.jumps || 0
+            });
+        }
+
         // Schedule next frame
         animationFrameId = requestAnimationFrame(gameLoop);
     }
@@ -904,8 +915,9 @@ function handleGameOver() {
 
     // Submit to leaderboard if score is decent
     if (score > 10) {
-        submitToLeaderboard(score);
+        submitToLeaderboard(score).catch(e => console.warn('🏆 Leaderboard submit failed (score saved locally):', e));
     }
+
 
     // Check Daily Challenge
     if (window.dailyChallenge) {
@@ -1140,12 +1152,39 @@ document.getElementById('btn-challenge-share')?.addEventListener('click', () => 
     shareScore(); // Will create a NEW challenge with player's new score
 });
 
-// Global Error Handler for Mobile Debugging (VISIBLE TO USER)
+
+// Global Error Handler — Silent in production, visible in debug mode
 window.onerror = function (msg, url, line, col, error) {
-    console.error(`Global Error: ${msg} at ${line}:${col}`);
-    alert(`CRITICAL ERROR:\n${msg}\nLine: ${line}`);
-    return false;
+    console.error(`🚨 Global Error: ${msg} at ${line}:${col} in ${url}`);
+
+    // Only show UI for game-critical errors, not 3rd-party SDK noise
+    const isThirdParty = url && (
+        url.includes('gstatic.com') ||
+        url.includes('telegram.org') ||
+        url.includes('googleapis.com')
+    );
+
+    if (!isThirdParty) {
+        // Try to show the built-in error screen (non-blocking)
+        try {
+            if (typeof showErrorScreen === 'function') {
+                showErrorScreen(error || { message: msg, stack: `at ${url}:${line}:${col}` }, 'Runtime Error');
+            }
+        } catch (e) {
+            // error screen itself failed — last resort log only
+            console.error('Cannot show error screen:', e);
+        }
+
+        // In debug mode also show alert
+        if (window._debugMode) {
+            alert(`CRITICAL ERROR:\n${msg}\nLine: ${line}\nFile: ${url}`);
+        }
+    }
+
+    return false; // Don't suppress error from dev tools
 };
+
+
 
 // Input Handling
 function setupInputs() {

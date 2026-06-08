@@ -1,6 +1,6 @@
 {
   "name": "pixel-jump",
-  "version": "1.0.0",
+  "version": "3.70",
   "description": "8-bit Pixel Art Vertical Platformer - Telegram Mini Game",
   "main": "main.js",
   "type": "module",

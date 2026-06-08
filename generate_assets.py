@@ -64,8 +64,8 @@ def create_icon(size, path):
 
 def main():
     base_dir = os.getcwd()
-    images_dir = os.path.join(base_dir, 'assets', 'images')
-    sounds_dir = os.path.join(base_dir, 'assets', 'sounds')
+    images_dir = os.path.join(base_dir, 'public', 'assets', 'images')
+    sounds_dir = os.path.join(base_dir, 'public', 'assets', 'sounds')
     
     ensure_dir(images_dir)
     ensure_dir(sounds_dir)

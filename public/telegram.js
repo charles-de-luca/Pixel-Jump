@@ -1,179 +1,36 @@
 /**
  * Telegram Web Apps integration for UPLOOP game
  */
-import { db } from './firebase-config.js';
+import { db, auth } from './firebase-config.js';
 import { collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+// Module-level cache — prevents re-running side effects (expand, setHeaderColor, etc.) on every call
+let _cachedTg = null;
 
 // Initialize Telegram Web App
 export function initTelegram() {
+  // Return cached instance if already initialized
+  if (_cachedTg) return _cachedTg;
+
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
 
-    // Expand the web app to full screen
+    // One-time setup — only runs on first call
     tg.expand();
-
-    // Set header color
     tg.setHeaderColor('#000000');
-
-    // Set background color
     tg.setBackgroundColor('#1a1a1a');
-
-    // Enable closing confirmation
     tg.enableClosingConfirmation();
 
-    // Return the Telegram WebApp object for further use
-    return tg;
+    _cachedTg = tg;
+    return _cachedTg;
   } else {
-    console.warn('Telegram WebApp not available');
-    // Return a mock object with fallback implementations
-    return createMockTelegramWebApp();
-  }
-}
-
-// Function to authenticate user via Telegram WebApp
-export function authenticateUser() {
-  if (window.Telegram && window.Telegram.WebApp) {
-    const tg = window.Telegram.WebApp;
-
-    // Get user data from Telegram
-    const user = tg.initDataUnsafe?.user;
-    if (user) {
-      // Create a secure token based on user data
-      const userData = {
-        id: user.id,
-        username: user.username || '',
-        firstName: user.first_name || '',
-        lastName: user.last_name || '',
-        authDate: Date.now()
-      };
-
-      // Store user data locally
-      localStorage.setItem('telegram_user_data', JSON.stringify(userData));
-
-      // Create a simple authentication token (in a real app, this would involve server-side verification)
-      const token = btoa(JSON.stringify(userData));
-      localStorage.setItem('auth_token', token);
-
-      console.log('User authenticated via Telegram:', userData);
-      return userData;
-    } else {
-      console.warn('No user data found in Telegram WebApp');
-      return null;
-    }
-  } else {
-    console.warn('Telegram WebApp not available for authentication');
-    return null;
+    console.warn('Telegram WebApp not available, using mock');
+    _cachedTg = createMockTelegramWebApp();
+    return _cachedTg;
   }
 }
 
 
-// Function to check if user is authenticated
-export function isAuthenticated() {
-  const token = localStorage.getItem('auth_token');
-  if (!token) {
-    return false;
-  }
-
-  try {
-    // Verify the token (basic check - in a real app, this would involve server-side verification)
-    const userData = JSON.parse(atob(token));
-    // Check if user data is still valid (not too old)
-    const timeDiff = Date.now() - userData.authDate;
-    // Token is valid for 24 hours
-    return timeDiff < 24 * 60 * 60 * 1000;
-  } catch (e) {
-    console.error('Error verifying auth token:', e);
-    return false;
-  }
-}
-
-// Function to get authenticated user data
-export function getAuthenticatedUser() {
-  if (!isAuthenticated()) {
-    return null;
-  }
-
-  const token = localStorage.getItem('auth_token');
-  try {
-    return JSON.parse(atob(token));
-  } catch (e) {
-    console.error('Error parsing user data:', e);
-    return null;
-  }
-}
-
-// Enhanced security function for token validation
-export function validateToken(token) {
-  try {
-    // Decode the token to check its contents
-    const decoded = JSON.parse(atob(token));
-
-    // Check if the token has required fields
-    if (!decoded.id || !decoded.authDate) {
-      return false;
-    }
-
-    // Check if the token is not expired (valid for 24 hours)
-    const timeDiff = Date.now() - decoded.authDate;
-    if (timeDiff > 24 * 60 * 60 * 1000) {
-      return false;
-    }
-
-    // In a real application, you would also verify the token signature here
-    // This is a simplified version for demonstration purposes
-
-    return true;
-  } catch (e) {
-    console.error('Error validating token:', e);
-    return false;
-  }
-}
-
-// Securely encode data for transmission
-export function secureEncode(data) {
-  // In a real application, you would use proper encryption here
-  // For now, we'll just use a simple encoding approach
-
-  // Add a timestamp to the data to prevent replay attacks
-  const dataWithTimestamp = {
-    ...data,
-    timestamp: Date.now()
-  };
-
-  // Convert to JSON string and encode
-  const jsonString = JSON.stringify(dataWithTimestamp);
-  return btoa(jsonString);
-}
-
-// Securely decode received data
-export function secureDecode(encodedData) {
-  try {
-    // Decode the base64 string
-    const jsonString = atob(encodedData);
-
-    // Parse the JSON
-    const data = JSON.parse(jsonString);
-
-    // Check if the data has a timestamp
-    if (!data.timestamp) {
-      throw new Error('Missing timestamp in received data');
-    }
-
-    // Check if the data is not too old (prevent replay attacks)
-    const timeDiff = Date.now() - data.timestamp;
-    if (timeDiff > 5 * 60 * 1000) { // 5 minutes
-      throw new Error('Received data is too old');
-    }
-
-    // Remove the timestamp before returning
-    delete data.timestamp;
-
-    return data;
-  } catch (e) {
-    console.error('Error decoding data:', e);
-    return null;
-  }
-}
 
 // Mock Telegram Web App for offline functionality
 function createMockTelegramWebApp() {
@@ -459,29 +316,25 @@ export async function loadProgressFromCloud() {
   return progress;
 }
 
-// Function to send game event to Firebase analytics
-export async function sendGameEvent(eventName, eventData = {}) {
-  try {
-    const userData = getAuthenticatedUser();
-    
-    // Create analytics document
-    const analyticsDoc = {
-      event: eventName,
-      data: eventData,
-      userId: userData ? userData.id : 'anonymous',
-      source: 'telegram_webapp',
-      timestamp: serverTimestamp(),
-      clientTime: new Date().toISOString()
-    };
-    
-    // Add to Firebase (SDK handles offline queuing automatically)
-    if (db) {
-      await addDoc(collection(db, 'analytics'), analyticsDoc);
-      console.log('📊 Analytics sent explicitly to Firebase:', eventName);
-    }
-  } catch (error) {
-    console.error('Error sending game event to analytics:', error);
-  }
+// Telemetry functions for analytics
+let telemetryEvents = [];
+
+// Function to send game event to Firebase analytics (queues locally)
+export function sendGameEvent(eventName, eventData = {}) {
+  const firebaseUid = auth?.currentUser?.uid || 'anonymous';
+  
+  // Create analytics event document
+  const event = {
+    event: eventName,
+    data: eventData,
+    userId: firebaseUid,
+    source: 'telegram_webapp',
+    timestamp: Date.now(),
+    clientTime: new Date().toISOString()
+  };
+  
+  telemetryEvents.push(event);
+  console.log('📊 Analytics event queued locally:', eventName, event);
 }
 
 // Offline queue functionality is removed. 
@@ -517,25 +370,13 @@ export function shareResult(score) {
   }
 }
 
-// Telemetry functions for analytics
-let telemetryEvents = [];
-
 // Log an event to telemetry
 export function logTelemetryEvent(eventType, data = {}) {
-  const timestamp = Date.now();
-  const event = {
-    type: eventType,
-    data: data,
-    timestamp: timestamp,
+  sendGameEvent(eventType, {
+    ...data,
     score: globalThis.currentScore || 0,
     level: globalThis.currentLevel || 1
-  };
-
-  telemetryEvents.push(event);
-  console.log('Telemetry event logged:', event);
-
-  // Send to Telegram analytics
-  sendGameEvent(eventType, data);
+  });
 }
 
 // Get all collected telemetry events
@@ -543,14 +384,29 @@ export function getTelemetryEvents() {
   return telemetryEvents;
 }
 
-// Send telemetry to backend (placeholder for future implementation)
-export function sendTelemetry() {
-  if (telemetryEvents.length > 0) {
-    console.log('Sending telemetry data:', telemetryEvents);
+// Send telemetry queue to Firestore as a single batch document
+export async function sendTelemetry() {
+  if (telemetryEvents.length === 0 || !db) return;
 
-    // In a real implementation, this would send data to a backend server
-    // For now, we'll just clear the events array
-    telemetryEvents = [];
+  const eventsToSend = [...telemetryEvents];
+  telemetryEvents = []; // Clear immediately to prevent race conditions
+
+  try {
+    const firebaseUid = auth?.currentUser?.uid || 'anonymous';
+    const batchDoc = {
+      userId: firebaseUid,
+      source: 'telegram_webapp',
+      events: eventsToSend,
+      timestamp: serverTimestamp(),
+      clientTime: new Date().toISOString()
+    };
+
+    await addDoc(collection(db, 'analytics'), batchDoc);
+    console.log(`📊 Sent ${eventsToSend.length} analytics events to Firebase in a single batch`);
+  } catch (error) {
+    console.error('Error sending telemetry batch to Firebase:', error);
+    // Put events back in queue if failed to avoid data loss
+    telemetryEvents = [...eventsToSend, ...telemetryEvents];
   }
 }
 
@@ -597,15 +453,15 @@ export function initTelemetry() {
   });
 }
 
-// Haptic feedback functions
+// Haptic feedback — uses cached tg directly for zero overhead
 export function triggerHapticFeedback(type = 'light') {
-  const tg = initTelegram();
   try {
+    const tg = _cachedTg || initTelegram();
     if (tg && tg.HapticFeedback) {
       tg.HapticFeedback.impactOccurred(type);
     }
   } catch (e) {
-    // ignore
+    // ignore — haptic is non-critical
   }
 }
 
@@ -699,124 +555,4 @@ export function adjustLayoutForSafeArea(canvas) {
   return safeArea;
 }
 
-// Function to send game data to Telegram Bot API
-export async function sendGameData(data) {
-  // Check if user is authenticated
-  if (!isAuthenticated()) {
-    console.warn('User not authenticated, cannot send game data to bot');
-    return false;
-  }
 
-  try {
-    // In a real implementation, this would make an HTTP request to your bot backend
-    // For now, we'll simulate this with a mock API call
-    console.log('Sending game data to bot:', data);
-
-    // This is where you would actually send data to your Telegram bot backend
-    // Example:
-    /*
-    const response = await fetch('YOUR_BOT_API_ENDPOINT', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      },
-      body: JSON.stringify({
-        user_id: getAuthenticatedUser().id,
-        data: data
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    return result;
-    */
-
-    // Simulated successful response
-    return { success: true, data: data };
-  } catch (error) {
-    console.error('Error sending game data to bot:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-// Function to send score to bot
-export async function sendScoreToBot(score) {
-  const userData = getAuthenticatedUser();
-  if (!userData) {
-    console.warn('Cannot send score to bot: no authenticated user');
-    return false;
-  }
-
-  return await sendGameData({
-    type: 'score_update',
-    user_id: userData.id,
-    score: score,
-    timestamp: Date.now()
-  });
-}
-
-// Function to get game data from Telegram Bot API
-export async function getGameData(dataType) {
-  // Check if user is authenticated
-  if (!isAuthenticated()) {
-    console.warn('User not authenticated, cannot get game data from bot');
-    return null;
-  }
-
-  try {
-    // In a real implementation, this would make an HTTP request to your bot backend
-    // For now, we'll simulate this with a mock API call
-    console.log('Getting game data from bot:', dataType);
-
-    // This is where you would actually fetch data from your Telegram bot backend
-    // Example:
-    /*
-    const response = await fetch(`YOUR_BOT_API_ENDPOINT/${dataType}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    return result;
-    */
-
-    // Simulated response based on data type
-    switch (dataType) {
-      case 'leaderboard':
-        return {
-          success: true,
-          data: [
-            { user_id: 1, username: 'player1', score: 5000 },
-            { user_id: 2, username: 'player2', score: 5000 },
-            { user_id: 3, username: 'player3', score: 3200 }
-          ]
-        };
-      case 'user_stats':
-        return {
-          success: true,
-          data: {
-            user_id: userData.id,
-            total_games: 15,
-            best_score: await getHighScore(),
-            achievements: ['first_game', 'high_score']
-          }
-        };
-      default:
-        return { success: true, data: {} };
-    }
-  } catch (error) {
-    console.error('Error getting game data from bot:', error);
-    return { success: false, error: error.message };
-  }
-}

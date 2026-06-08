@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pixel-jump-v3.68';
+const CACHE_NAME = 'pixel-jump-v3.70';
 
 // CRITICAL: Strategy "Network First" for logic
 // We always try to get the latest version from the server.
@@ -8,20 +8,28 @@ const CRITICAL_URLS = [
     'index.html',
     'main.v3.js',
     'engine.v3.js',
-    'settings-skins.js',
-    'challenges.js',
-    'telegram.js',
-    'leaderboard.js',
     'audio.js',
     'biomes.js',
     'character-ui.js',
     'characters.js',
+    'challenges.js',
+    'cloud-sync.js',
     'daily-challenge.js',
+    'device-utils.js',
+    'firebase-config.js',
     'genesis-skins.js',
+    'ghost.js',
+    'i18n.js',
+    'leaderboard.js',
     'perks.js',
+    'settings-skins.js',
     'skin-effects.js',
+    'telegram.js',
+    'tutorial.js',
+    'manifest.json',
     'style.css' // CSS is also critical for UI fixes
 ];
+
 
 // Strategy "Stale While Revalidate" for assets
 // Load from cache instantly, then update in background.
