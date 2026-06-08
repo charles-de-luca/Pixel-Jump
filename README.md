@@ -1,5 +1,3 @@
-![Logo Pixel Jump](assets/botpic.png)
-
 <p align="center">
   <img src="botpic.png" alt="Pixel Jump" width="200"/>
 </p>
