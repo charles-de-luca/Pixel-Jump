@@ -1,8 +1,8 @@
+# PIXEL JUMP 🎮
+
 <p align="center">
   <img src="botpic.png" alt="Pixel Jump" width="200"/>
 </p>
-
-# PIXEL JUMP 🎮
 
 8-bit Pixel Art Vertical Platformer - Telegram Mini Game
 
