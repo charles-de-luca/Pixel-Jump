@@ -9,7 +9,7 @@
 
 **8-bit Pixel Art Vertical Platformer - Telegram Mini Game**
 
-[![License](https://img.shields.io/badge/license-Apache-License_2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-orange.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-3.70-blue.svg)]()
 
 </div>
